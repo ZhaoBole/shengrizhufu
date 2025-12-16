@@ -3,19 +3,75 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-  <title>王若雯-生日快乐</title>
+  <title>生日快乐</title>
   <style>
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, PingFangSC, "Microsoft YaHei", sans-serif; }
     #app { position: relative; width: 100vw; height: 100vh; }
     #canvas-container { position: absolute; inset: 0; }
     
+    /* 音乐播放提示层 */
+    .music-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+      cursor: pointer;
+    }
+    
+    .music-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+    
+    .music-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+      animation: pulse 2s infinite;
+      filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+    }
+    
+    .music-prompt {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      text-align: center;
+      color: #ffd700;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+    
+    .music-subtitle {
+      font-size: 16px;
+      opacity: 0.8;
+      text-align: center;
+      max-width: 80%;
+      line-height: 1.5;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
     .barrage { position: fixed; inset: 0; pointer-events: none; z-index: 9; }
     .barrage-item { position: fixed; left: 100vw; white-space: nowrap; font-weight: 700; text-shadow: 0 0 8px rgba(255,255,255,0.35), 0 0 16px rgba(255,255,255,0.2); filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35)); animation-name: fly; animation-timing-function: linear; animation-fill-mode: forwards; }
     @keyframes fly { 0% { transform: translateX(0); } 100% { transform: translateX(-120vw); } }
     .fullscreen-btn { position: fixed; right: 14px; bottom: 14px; z-index: 11; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.25); background: rgba(255,255,255,0.12); color: #fff; font-weight: 600; letter-spacing: 0.5px; backdrop-filter: blur(4px); cursor: pointer; }
     .fullscreen-btn:hover { background: rgba(255,255,255,0.18); }
-    @media (max-width: 768px) { .fullscreen-btn { padding: 9px 12px; right: 10px; bottom: 10px; font-size: 13px; } }
+    @media (max-width: 768px) { 
+      .fullscreen-btn { padding: 9px 12px; right: 10px; bottom: 10px; font-size: 13px; } 
+      .music-icon { font-size: 36px; }
+      .music-prompt { font-size: 18px; }
+      .music-subtitle { font-size: 14px; }
+    }
     @media (max-width: 768px) { .barrage-item { font-size: clamp(14px, 3.5vw, 20px); } }
     @media (min-width: 769px) { .barrage-item { font-size: clamp(16px, 2.1vw, 28px); } }
     
@@ -27,9 +83,16 @@
 </head>
 <body>
   <!-- 背景音乐 -->
-  <audio id="bgMusic" autoplay loop>
-    <source src="/心做dj.m4a" type="audio/mp4">
+  <audio id="bgMusic" loop>
+    <source src="https://cdn.jsdelivr.net/gh/ZhaoBole/music@main/心做dj.m4a" type="audio/mp4">
   </audio>
+  
+  <!-- 音乐播放提示层 -->
+  <div id="musicOverlay" class="music-overlay">
+    <div class="music-icon">🎵</div>
+    <div class="music-prompt">点击网页任意位置开始</div>
+    <div class="music-subtitle">王若雯，生日快乐！</div>
+  </div>
   
   <div id="app"></div>
   <script type="module">
@@ -542,6 +605,27 @@
           camera.lookAt(0, (topY + bottomY) * 0.5, 0);
         }
 
+        // 开始播放音乐
+        function startMusic() {
+          const bgMusic = document.getElementById('bgMusic');
+          const overlay = document.getElementById('musicOverlay');
+          
+          // 播放音乐
+          bgMusic.play().then(() => {
+            console.log("音乐开始播放");
+          }).catch(e => {
+            console.log("音乐播放失败:", e);
+          });
+          
+          // 隐藏提示层
+          overlay.classList.add('hidden');
+          
+          // 移除点击事件，避免重复触发
+          setTimeout(() => {
+            overlay.style.display = 'none';
+          }, 800);
+        }
+
         onMounted(() => {
           const el = document.createElement('div');
           el.id = 'canvas-container';
@@ -551,9 +635,19 @@
           setInterval(spawnBarrage, 1200);
           document.addEventListener('fullscreenchange', () => { isFs.value = !!document.fullscreenElement; });
           
-          // 确保音乐播放
-          const bgMusic = document.getElementById('bgMusic');
-          bgMusic.play().catch(e => console.log("自动播放被阻止:", e));
+          // 添加点击事件监听
+          const overlay = document.getElementById('musicOverlay');
+          overlay.addEventListener('click', startMusic);
+          
+          // 允许用户点击页面任意位置开始播放
+          document.addEventListener('click', function startOnAnyClick(e) {
+            // 如果点击的不是全屏按钮
+            if (!e.target.closest('.fullscreen-btn')) {
+              startMusic();
+              // 移除事件监听，避免重复触发
+              document.removeEventListener('click', startOnAnyClick);
+            }
+          });
         });
 
         return () => h('div', { style: { width: '100%', height: '100%' } }, [
